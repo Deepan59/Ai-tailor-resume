@@ -1,0 +1,195 @@
+.create-container {
+    padding-top: var(--spacing-8);
+    padding-bottom: var(--spacing-16);
+    max-width: 1000px;
+}
+
+.page-title {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    margin-bottom: var(--spacing-12);
+    text-align: center;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.create-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-8);
+    margin-bottom: var(--spacing-12);
+}
+
+.create-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-8);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s ease;
+}
+
+.create-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.step-number {
+    width: 36px;
+    height: 36px;
+    background: var(--gradient-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+}
+
+.card-header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-12);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.5);
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-area:hover,
+.upload-area.dragging {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+    transform: scale(1.01);
+}
+
+.upload-area.has-file {
+    border-style: solid;
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.05);
+    cursor: default;
+}
+
+.upload-icon {
+    width: 64px;
+    height: 64px;
+    color: var(--text-muted);
+    margin: 0 auto;
+    transition: color 0.3s;
+}
+
+.upload-area:hover .upload-icon {
+    color: var(--primary);
+}
+
+.file-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    width: 100%;
+}
+
+.file-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--primary);
+}
+
+.file-info {
+    flex: 1;
+    text-align: left;
+}
+
+.file-name {
+    display: block;
+    font-weight: 600;
+    font-size: var(--font-size-lg);
+    color: var(--text-main);
+}
+
+.file-size {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.remove-file {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: var(--spacing-2);
+    cursor: pointer;
+    border-radius: var(--radius-full);
+    transition: all 0.2s;
+}
+
+.remove-file:hover {
+    color: var(--error);
+    border-color: var(--error);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+/* Job Description */
+.job-desc-input {
+    width: 100%;
+    padding: var(--spacing-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    resize: vertical;
+    font-family: inherit;
+    min-height: 240px;
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s;
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+}
+
+.job-desc-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    background: white;
+}
+
+.char-count {
+    text-align: right;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: var(--spacing-2);
+}
+
+.create-actions {
+    text-align: center;
+    margin-top: var(--spacing-8);
+}
+
+@media (min-width: 900px) {
+    .create-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}

@@ -1,0 +1,75 @@
+:root {
+  /* Colors - Premium Palette */
+  --primary: #6366f1;
+  /* Indigo 500 */
+  --primary-hover: #4f46e5;
+  /* Indigo 600 */
+  --secondary: #64748b;
+  /* Slate 500 */
+  --background: #ffffff;
+  --surface: #f8fafc;
+  /* Slate 50 */
+  --border: #e2e8f0;
+  /* Slate 200 */
+  --text-main: #0f172a;
+  /* Slate 900 */
+  --text-muted: #64748b;
+  /* Slate 500 */
+  --success: #10b981;
+  --error: #ef4444;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient-hover: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --gradient-surface: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+  /* Typography */
+  --font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2.5rem;
+  --font-size-4xl: 3.5rem;
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+  --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+/* Dark Mode Overrides (Optional but ready) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* To strictly follow "don't change functionality" including existing dark mode if any, 
+       but currently variables don't seem to natively support it fully in the previous file.
+       However, for a premium feel, sticking to a verified cohesive theme is safer than auto-switching 
+       unless requested. I'll stick to the light/clean premium theme as default for now 
+       to align with previous palette but upgraded. */
+  }
+}

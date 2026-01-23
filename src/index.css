@@ -1,0 +1,6 @@
+/* Resets default Vite styles to allow our global styles to take over */
+:root {
+  /* Inherit from our variables.css */
+}
+
+/* Ensure no default dark mode media queries override our theme unless we explicitly want them */
