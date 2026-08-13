@@ -247,12 +247,35 @@ app.get('/api/resumes', authenticateToken, async (req, res) => {
             id: r._id,
             jobTitle: r.jobTitle || 'Untitled',
             company: r.company || 'Unknown',
+            originalText: r.originalText || '',
+            tailoredText: r.tailoredText || '',
             date: r.createdAt
         }));
         res.json(formatted);
     } catch (error) {
         console.error('Fetch History Error:', error);
         res.status(500).json({ error: 'Failed to fetch resume history' });
+    }
+});
+
+// Get Single Resume Details
+app.get('/api/resumes/:id', authenticateToken, async (req, res) => {
+    try {
+        const resume = await Resume.findOne({ _id: req.params.id, userId: req.user.id });
+        if (!resume) {
+            return res.status(404).json({ error: 'Resume not found' });
+        }
+        res.json({
+            id: resume._id,
+            jobTitle: resume.jobTitle || 'Untitled',
+            company: resume.company || 'Unknown',
+            originalText: resume.originalText || '',
+            tailoredText: resume.tailoredText || '',
+            date: resume.createdAt
+        });
+    } catch (error) {
+        console.error('Fetch Resume Error:', error);
+        res.status(500).json({ error: 'Failed to fetch resume details' });
     }
 });
 

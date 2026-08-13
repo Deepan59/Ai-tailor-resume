@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Download, FileText, Clock, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Download, FileText, Clock, AlertCircle, Eye } from 'lucide-react';
 import { resume, usage as usageApi } from '../services/api';
 import Button from '../components/Button';
 import './Dashboard.css';
 
 export default function Dashboard() {
+    const navigate = useNavigate();
     const [resumes, setResumes] = useState([]);
     const [usage, setUsage] = useState({ used: 0, limit: 5 });
     const [loading, setLoading] = useState(true);
@@ -31,7 +32,15 @@ export default function Dashboard() {
         fetchData();
     }, []);
 
-    const percentage = Math.min((usage.used / usage.limit) * 100, 100);
+    const handleOpenTailoredResume = (item) => {
+        navigate(`/result?id=${item.id}`, {
+            state: {
+                originalText: item.originalText,
+                tailoredText: item.tailoredText,
+                resumeId: item.id
+            }
+        });
+    };
 
     if (loading) {
         return <div className="container dashboard-container">Loading...</div>;
@@ -48,23 +57,6 @@ export default function Dashboard() {
             </div>
         );
     }
-
-    const handleDownload = async (id, title) => {
-        try {
-            const blob = await resume.download(id);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${title || 'resume'}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (err) {
-            console.error("Download failed:", err);
-            alert("Failed to download resume. Please try again.");
-        }
-    };
 
     return (
         <div className="container dashboard-container">
@@ -91,7 +83,12 @@ export default function Dashboard() {
                             : item.jobTitle;
 
                         return (
-                            <div key={item.id} className="resume-item">
+                            <div
+                                key={item.id}
+                                className="resume-item"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleOpenTailoredResume(item)}
+                            >
                                 <div className="resume-icon">
                                     <FileText />
                                 </div>
@@ -106,9 +103,12 @@ export default function Dashboard() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleDownload(item.id, displayTitle)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenTailoredResume(item);
+                                        }}
                                     >
-                                        <Download className="icon-sm" /> Download
+                                        <Download className="icon-sm" /> Download Tailored PDF
                                     </Button>
                                 </div>
                             </div>

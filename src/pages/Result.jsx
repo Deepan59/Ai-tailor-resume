@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Download, Copy, RotateCcw, ArrowLeft, CheckCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Button from '../components/Button';
+import { resume as resumeApi } from '../services/api';
 import './Result.css';
 
 import { jsPDF } from 'jspdf';
@@ -10,12 +11,41 @@ import html2canvas from 'html2canvas';
 
 export default function Result() {
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState('tailored');
     const [copied, setCopied] = useState(false);
     const [downloading, setDownloading] = useState(false);
+    const [loadingData, setLoadingData] = useState(false);
+    const [resumeData, setResumeData] = useState({
+        originalText: location.state?.originalText || '',
+        tailoredText: location.state?.tailoredText || '',
+        resumeId: location.state?.resumeId || searchParams.get('id') || ''
+    });
     const printRef = useRef(null);
 
-    const { originalText, tailoredText, resumeId } = location.state || {};
+    const queryId = searchParams.get('id');
+
+    useEffect(() => {
+        if (!resumeData.tailoredText && queryId) {
+            setLoadingData(true);
+            resumeApi.getById(queryId)
+                .then(data => {
+                    setResumeData({
+                        originalText: data.originalText || '',
+                        tailoredText: data.tailoredText || '',
+                        resumeId: data.id
+                    });
+                })
+                .catch(err => {
+                    console.error("Failed to load resume details:", err);
+                })
+                .finally(() => {
+                    setLoadingData(false);
+                });
+        }
+    }, [queryId, resumeData.tailoredText]);
+
+    const { originalText, tailoredText, resumeId } = resumeData;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(tailoredText);

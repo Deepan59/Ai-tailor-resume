@@ -121,6 +121,24 @@ ${jobDescription}
     return data;
   },
 
+  getById: async (id) => {
+    const token = getToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_URL}/api/resumes/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to fetch resume details');
+    }
+
+    return await response.json();
+  },
+
   download: async (id) => {
     const token = getToken();
     if (!token) throw new Error('Not authenticated');

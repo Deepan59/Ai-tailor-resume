@@ -86,9 +86,9 @@ export default function CreateResume() {
             // 3. Tailor Resume
             const output = await resume.tailor(resumeId, resumeText, jobDescription);
 
-            navigate('/result', {
+            navigate(`/result?id=${output.tailoredResumeId}`, {
                 state: {
-                    originalText: output.originalText || "Original text not provided", // fallback
+                    originalText: output.originalText || "Original text not provided",
                     tailoredText: output.tailoredText,
                     resumeId: output.tailoredResumeId
                 }
