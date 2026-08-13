@@ -3,7 +3,7 @@ services:
     name: ai-tailor-resume-frontend
     env: static
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    publishDir: dist
     routes:
       - type: rewrite
         source: /*
