@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Download, Copy, RotateCcw, ArrowLeft, CheckCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -6,11 +6,14 @@ import Button from '../components/Button';
 import './Result.css';
 
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Result() {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState('tailored');
     const [copied, setCopied] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+    const printRef = useRef(null);
 
     const { originalText, tailoredText, resumeId } = location.state || {};
 
@@ -20,117 +23,73 @@ export default function Result() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         if (!tailoredText) {
             alert("No tailored text to download.");
             return;
         }
+        if (!printRef.current) return;
 
+        setDownloading(true);
         try {
-            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            // A4 at 96 dpi = 794 × 1123 px. The hidden div is always 794px wide
+            // regardless of the device viewport, so output is identical on all screens.
+            const element = printRef.current;
 
-            const margin = 20;
-            const pageWidth = 210;
-            const usableWidth = pageWidth - margin * 2;
-            const pageHeight = 297;
-            let y = margin;
-
-            const lines = tailoredText.split('\n');
-
-            const addPageIfNeeded = (height) => {
-                if (y + height > pageHeight - margin) {
-                    doc.addPage();
-                    y = margin;
-                }
-            };
-
-            lines.forEach((rawLine) => {
-                const line = rawLine.trim();
-
-                // H1 - Name
-                if (line.startsWith('# ')) {
-                    const text = line.replace(/^# /, '');
-                    addPageIfNeeded(12);
-                    doc.setFontSize(20);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(15, 23, 42);
-                    doc.text(text, margin, y);
-                    y += 10;
-                    // Underline separator
-                    doc.setDrawColor(99, 102, 241);
-                    doc.setLineWidth(0.8);
-                    doc.line(margin, y, pageWidth - margin, y);
-                    y += 6;
-
-                // H2 - Section Headers
-                } else if (line.startsWith('## ')) {
-                    const text = line.replace(/^## /, '');
-                    addPageIfNeeded(10);
-                    y += 3;
-                    doc.setFontSize(11);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(99, 102, 241);
-                    doc.text(text.toUpperCase(), margin, y);
-                    y += 2;
-                    doc.setDrawColor(226, 232, 240);
-                    doc.setLineWidth(0.3);
-                    doc.line(margin, y, pageWidth - margin, y);
-                    y += 6;
-
-                // H3 - Job titles / Project names
-                } else if (line.startsWith('### ')) {
-                    const text = line.replace(/^### /, '');
-                    addPageIfNeeded(8);
-                    doc.setFontSize(10.5);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(15, 23, 42);
-                    doc.text(text, margin, y);
-                    y += 6;
-
-                // H4 - Tech stack / subtitle
-                } else if (line.startsWith('#### ')) {
-                    const text = line.replace(/^#### /, '');
-                    addPageIfNeeded(7);
-                    doc.setFontSize(9.5);
-                    doc.setFont('helvetica', 'italic');
-                    doc.setTextColor(100, 116, 139);
-                    doc.text(text, margin, y);
-                    y += 5;
-
-                // Bullet points
-                } else if (line.startsWith('* ') || line.startsWith('- ')) {
-                    const text = line.replace(/^[*-] /, '');
-                    const cleanText = text.replace(/\*\*(.*?)\*\*/g, '$1');
-                    const splitLines = doc.splitTextToSize(`• ${cleanText}`, usableWidth - 4);
-                    addPageIfNeeded(splitLines.length * 5 + 2);
-                    doc.setFontSize(9.5);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setTextColor(51, 65, 85);
-                    doc.text(splitLines, margin + 3, y);
-                    y += splitLines.length * 5 + 1;
-
-                // Empty line
-                } else if (line === '') {
-                    y += 2;
-
-                // Normal text / contact info
-                } else {
-                    const cleanText = line.replace(/\*\*(.*?)\*\*/g, '$1');
-                    const splitLines = doc.splitTextToSize(cleanText, usableWidth);
-                    addPageIfNeeded(splitLines.length * 5 + 1);
-                    doc.setFontSize(9.5);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setTextColor(51, 65, 85);
-                    doc.text(splitLines, margin, y);
-                    y += splitLines.length * 5 + 1;
-                }
+            const canvas = await html2canvas(element, {
+                scale: 2,           // 2× for crisp text on retina / mobile
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                width: 794,         // fixed A4 width — never reads the viewport
+                windowWidth: 794,
             });
 
-            doc.save(`tailored-resume-${resumeId || 'new'}.pdf`);
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
+            // A4 dimensions in mm
+            const pdfW = 210;
+            const pdfH = 297;
+
+            // How many mm does one canvas pixel represent?
+            const mmPerPx = pdfW / canvas.width;
+            const contentHeightMm = canvas.height * mmPerPx;
+
+            const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+            let remainingHeight = contentHeightMm;
+            let sourceY = 0;          // in canvas pixels
+            let pageIndex = 0;
+
+            while (remainingHeight > 0) {
+                if (pageIndex > 0) doc.addPage();
+
+                // How many canvas pixels fit on one A4 page?
+                const slicePxH = Math.round(pdfH / mmPerPx);
+
+                // Crop out one page-worth of pixels from the canvas
+                const sliceCanvas = document.createElement('canvas');
+                sliceCanvas.width = canvas.width;
+                sliceCanvas.height = Math.min(slicePxH, canvas.height - sourceY);
+
+                const ctx = sliceCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, -sourceY);
+
+                const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+                const sliceHeightMm = sliceCanvas.height * mmPerPx;
+
+                doc.addImage(sliceData, 'JPEG', 0, 0, pdfW, sliceHeightMm);
+
+                sourceY += slicePxH;
+                remainingHeight -= pdfH;
+                pageIndex++;
+            }
+
+            doc.save(`tailored-resume-${resumeId || 'new'}.pdf`);
         } catch (error) {
             console.error("PDF generation failed:", error);
             alert("Failed to generate PDF. Please try again.");
+        } finally {
+            setDownloading(false);
         }
     };
 
@@ -156,8 +115,9 @@ export default function Result() {
                     <Button variant="outline" onClick={() => window.location.href = '/create'}>
                         <RotateCcw size={15} className="icon-sm" /> Generate Again
                     </Button>
-                    <Button onClick={handleDownload}>
-                        <Download size={15} className="icon-sm" /> Download PDF
+                    <Button onClick={handleDownload} disabled={downloading}>
+                        <Download size={15} className="icon-sm" />
+                        {downloading ? 'Generating…' : 'Download PDF'}
                     </Button>
                 </div>
             </div>
@@ -227,6 +187,34 @@ export default function Result() {
                         </ReactMarkdown>
                     </div>
                 </div>
+            </div>
+
+            {/* Hidden fixed-width A4 render target — always 794px regardless of device */}
+            <div
+                ref={printRef}
+                className="pdf-print-target"
+                aria-hidden="true"
+            >
+                <ReactMarkdown
+                    components={{
+                        h1: ({ children }) => <h1 className="resume-name">{children}</h1>,
+                        h2: ({ children }) => <h2 className="resume-section">{children}</h2>,
+                        h3: ({ children }) => <h3 className="resume-role">{children}</h3>,
+                        h4: ({ children }) => <h4 className="resume-subtitle">{children}</h4>,
+                        p: ({ children }) => <p className="resume-p">{children}</p>,
+                        ul: ({ children }) => <ul className="resume-ul">{children}</ul>,
+                        li: ({ children }) => <li className="resume-li">{children}</li>,
+                        strong: ({ children }) => <strong className="resume-strong">{children}</strong>,
+                        a: ({ href, children }) => (
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="resume-link">
+                                {children}
+                            </a>
+                        ),
+                        hr: () => <hr className="resume-hr" />,
+                    }}
+                >
+                    {tailoredText}
+                </ReactMarkdown>
             </div>
         </div>
     );

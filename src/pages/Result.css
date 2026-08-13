@@ -339,3 +339,23 @@
     .resume-doc { padding: 20px 16px; }
     .resume-name { font-size: 1.3rem; }
 }
+
+/* ============================================================
+   HIDDEN A4 PRINT TARGET  (captured by html2canvas for PDF)
+   Must be rendered by browser but invisible to the user.
+   Fixed 794 px wide = A4 at 96 dpi — device-independent.
+   ============================================================ */
+.pdf-print-target {
+    position: fixed;
+    top: 0;
+    left: -9999px;
+    width: 794px;
+    background: #ffffff;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #1e293b;
+    line-height: 1.5;
+    padding: 48px 56px;
+    /* Keep all resume-doc child styles at desktop scale */
+    pointer-events: none;
+    z-index: -1;
+}
