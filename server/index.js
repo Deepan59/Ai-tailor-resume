@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import User from './models/user.js';
 import Resume from './models/resume.js';
@@ -14,6 +15,13 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Resolve __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Path to the built React frontend (../dist relative to server/)
+const distPath = path.join(__dirname, '..', 'dist');
 app.use(cors())
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -357,6 +365,22 @@ app.post('/api/groq/generate', async (req, res) => {
             error: 'Failed to generate content via Groq',
             message: error.message
         });
+    }
+});
+
+// ================= SERVE FRONTEND =================
+// Serve built React app static files
+app.use(express.static(distPath));
+
+// SPA catch-all: for any route not matched by API above,
+// send back index.html so React Router handles it client-side.
+// This fixes 404 on refresh for /result, /dashboard, etc.
+app.get('*', (req, res) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send('Frontend not built. Run npm run build first.');
     }
 });
 
