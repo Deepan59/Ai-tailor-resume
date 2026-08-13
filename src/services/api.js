@@ -1,26 +1,26 @@
-import { supabase } from './supabase';
 import { generateResponse } from './gemini';
 
-// Helper to get current user
-const getUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-  return user;
-};
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+const getToken = () => localStorage.getItem('token');
+
+// Helper to get user profile from JWT
 export const auth = {
-  // These are now largely handled by AuthContext interacting with Supabase directly,
-  // but keeping them if needed for compatibility or extended logic.
   getUser: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Map Supabase user structure to our app's expected structure if needed
-      return {
-        ...user,
-        name: user.user_metadata?.name || user.email,
-        email: user.email,
-        plan: user.app_metadata?.plan || 'Free Plan'
-      };
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.error('Failed to get user:', err);
     }
     return null;
   }
@@ -28,42 +28,27 @@ export const auth = {
 
 export const resume = {
   upload: async (file) => {
-    const user = await getUser();
-    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+    const token = getToken();
+    if (!token) throw new Error('Not authenticated');
 
-    // 1. Upload to Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('resumes')
-      .upload(filePath, file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-    if (storageError) throw new Error(storageError.message);
+    const response = await fetch(`${API_URL}/api/resumes/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
 
-    // 1.5 Get current resume count for naming
-    const { count } = await supabase
-      .from('resumes')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to upload resume');
+    }
 
-    const nextNumber = (count || 0) + 1;
-    const defaultTitle = `Resume ${nextNumber}`;
-
-    // 2. Insert record into Database
-    const { data: dbData, error: dbError } = await supabase
-      .from('resumes')
-      .insert([
-        {
-          user_id: user.id,
-          file_path: filePath,
-          job_title: defaultTitle,
-          company: ' '
-        }
-      ])
-      .select()
-      .single();
-
-    if (dbError) throw new Error(dbError.message);
-
-    return { resumeId: dbData.id, filePath };
+    const data = await response.json();
+    return { resumeId: data.resumeId, filePath: data.filePath };
   },
 
   tailor: async (resumeId, resumeText, jobDescription) => {
@@ -94,15 +79,28 @@ export const resume = {
       // Extract a simple job title from the description (first line or first few words)
       const inferredTitle = jobDescription.split('\n')[0].substring(0, 40).trim() || 'Tailored Position';
 
-      // Update the database record
-      await supabase
-        .from('resumes')
-        .update({
-          job_title: inferredTitle,
-          company: 'Target Company', // Could be extracted if we parse more, but this is safe
-          updated_at: new Date()
+      const token = getToken();
+      if (!token) throw new Error('Not authenticated');
+
+      // Update the database record on the backend
+      const response = await fetch(`${API_URL}/api/resumes/${resumeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          jobTitle: inferredTitle,
+          company: 'Target Company',
+          originalText: resumeText,
+          tailoredText: tailoredContent
         })
-        .eq('id', resumeId);
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to update resume details');
+      }
 
       return {
         originalText: resumeText,
@@ -116,45 +114,38 @@ export const resume = {
   },
 
   getHistory: async () => {
-    const { data, error } = await supabase
-      .from('resumes')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const token = getToken();
+    if (!token) throw new Error('Not authenticated');
 
-    if (error) throw new Error(error.message);
+    const response = await fetch(`${API_URL}/api/resumes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
 
-    // Map to frontend expectation
-    return data.map(r => ({
-      id: r.id,
-      jobTitle: r.job_title || 'Untitled',
-      company: r.company || 'Unknown',
-      date: r.created_at
-    }));
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to fetch resume history');
+    }
+
+    const data = await response.json();
+    return data;
   },
 
   download: async (id) => {
-    // Logic to get signed URL for the file
-    // First get the file path from DB
-    const { data: resumeRecord, error: dbError } = await supabase
-      .from('resumes')
-      .select('file_path')
-      .eq('id', id)
-      .single();
+    const token = getToken();
+    if (!token) throw new Error('Not authenticated');
 
-    if (dbError) throw new Error(dbError.message);
+    const response = await fetch(`${API_URL}/api/resumes/${id}/download`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
 
-    const { data, error: signedUrlError } = await supabase.storage
-      .from('resumes')
-      .createSignedUrl(resumeRecord.file_path, 60);
+    if (!response.ok) {
+      throw new Error('Failed to download resume file');
+    }
 
-    if (signedUrlError) throw new Error(signedUrlError.message);
-
-    // Redirect or return the URL
-    // Since expected return is a blob usually, we might need to fetch it or just return URL.
-    // The previous API expected a BLOB response.
-    // Let's change the calling code to handle URL redirect, or fetch it here.
-    // Fetching here for compatibility:
-    const response = await fetch(data.signedUrl);
     const blob = await response.blob();
     return blob;
   },
@@ -176,4 +167,4 @@ export const payment = {
   }
 };
 
-export default supabase;
+export default { auth, resume, usage, payment };

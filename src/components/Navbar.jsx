@@ -30,7 +30,7 @@ export default function Navbar() {
                 <div className="nav-links desktop-only">
                     {user ? (
                         <>
-                            <span className="user-greeting">Hi, {user.user_metadata?.name || user.email?.split('@')[0]}</span>
+                            <span className="user-greeting">Hi, {user.name || user.email?.split('@')[0]}</span>
                             <Link to="/dashboard" className="btn btn-ghost">Dashboard</Link>
                             <button onClick={handleLogout} className="btn btn-outline" title="Logout">
                                 <LogOut className="icon-sm" />
@@ -58,7 +58,7 @@ export default function Navbar() {
                         {user ? (
                             <>
                                 <div className="mobile-user-info">
-                                    Hi, {user.user_metadata?.name || user.email}
+                                    Hi, {user.name || user.email}
                                 </div>
                                 <Link to="/dashboard" className="btn btn-ghost" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
                                 <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="btn btn-ghost">

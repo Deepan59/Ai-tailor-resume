@@ -1,31 +1,24 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-let genAI = null;
-if (API_KEY) {
-    genAI = new GoogleGenerativeAI(API_KEY);
-} else {
-    console.error("VITE_GEMINI_API_KEY is not set in .env");
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const generateResponse = async (prompt) => {
-    if (!genAI) {
-        throw new Error("Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.");
-    }
-
     try {
-        const model = genAI.getGenerativeModel({
-            model: "gemini-flash-latest",
-            generationConfig: {
-                maxOutputTokens: 8192,
-            }
+        const response = await fetch(`${API_URL}/api/groq/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt }),
         });
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.message || 'Failed to generate content');
+        }
+
+        const data = await response.json();
+        return data.text;
     } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        throw new Error(`Failed to generate content. API Error: ${error.message}`);
+        console.error("Error calling backend API:", error);
+        throw new Error(`Failed to generate content. ${error.message}`);
     }
 };
