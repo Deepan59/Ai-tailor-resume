@@ -16,15 +16,32 @@ export const extractTextFromPdf = async (file) => {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
 
-            // Join with newline to preserve clear structure for lists/headers
-            // Filter empty strings to avoid excess whitespace
-            const pageText = textContent.items
-                .map(item => item.str)
-                .filter(str => str.trim().length > 0)
-                .join('\n');
+            let lastY = null;
+            let pageLines = [];
+            let currentLine = '';
 
-            fullText += `--- Page ${i} ---\n${pageText}\n`;
+            textContent.items.forEach((item) => {
+                const str = item.str;
+                const y = item.transform ? Math.round(item.transform[5]) : null;
+
+                if (lastY !== null && y !== null && Math.abs(y - lastY) > 2) {
+                    // New line detected (Y position changed)
+                    if (currentLine.trim()) pageLines.push(currentLine.trim());
+                    currentLine = str;
+                } else {
+                    currentLine += str;
+                }
+                lastY = y;
+            });
+            if (currentLine.trim()) pageLines.push(currentLine.trim());
+
+            // Add a page break marker only between pages, not as noise in the text
+            if (i > 1) fullText += '\n';
+            fullText += pageLines.join('\n');
         }
+
+        // Clean up: collapse 3+ consecutive blank lines to 2
+        fullText = fullText.replace(/\n{3,}/g, '\n\n').trim();
 
         return fullText;
     } catch (error) {

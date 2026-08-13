@@ -53,26 +53,15 @@ export const resume = {
 
   tailor: async (resumeId, resumeText, jobDescription) => {
     try {
-      const prompt = `
-        You are an expert Resume Writer.
-        I will provide you with my current resume text and a target job description.
-        Your task is to REWRITE the resume to target the job description, but you must MAINTAIN THE FULL LENGTH and DETAIL of the original.
+      const prompt = `Tailor the resume below to match the target job description. Keep ALL experience, education, and projects — only rephrase bullet points and skills to use keywords from the job description. Return ONLY the full resume in clean markdown.
 
-        CRITICAL INSTRUCTIONS:
-        1. DO NOT SUMMARIZE. The output must be as long or longer than the original.
-        2. Keep ALL job history, ALL education, and ALL projects.
-        3. Only REPHRASE bullet points to use keywords from the Job Description (e.g., "Full Stack", "Node.js").
-        4. In "Skills", prioritize skills mentioned in the Job Description and format them as a comma-separated list (e.g., "React, Node.js, SQL") to save space.
-        5. DO NOT invent false experience, but you can rephrase existing experience to use keywords from the description.
-        6. Return ONLY the markdown text of the new resume. Do not include any conversational filler.
-        7. CRITICAL: Do NOT summarize the experience. Retain all jobs and details from the original resume, just rephrased. The output must be the FULL resume. No intro/outro.
+=== RESUME ===
+${resumeText}
 
-        Current Resume Text:
-        ${resumeText}
+=== JOB DESCRIPTION ===
+${jobDescription}
 
-        Target Job Description:
-        ${jobDescription}
-        `;
+=== TAILORED RESUME (markdown only) ===`;
 
       const tailoredContent = await generateResponse(prompt);
 

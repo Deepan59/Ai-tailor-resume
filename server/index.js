@@ -329,11 +329,16 @@ app.post('/api/groq/generate', async (req, res) => {
                 model: 'llama-3.3-70b-versatile',
                 messages: [
                     {
+                        role: 'system',
+                        content: 'You are an expert professional resume writer. Your job is to REWRITE and TAILOR resumes to match specific job descriptions. You MUST make meaningful changes: rephrase bullet points using keywords from the job description, reorder skills to prioritize relevant ones, and adjust language to match the role. Always return ONLY the full tailored resume in clean markdown format. Never return the original resume unchanged. Never add commentary or explanation — only the resume markdown.'
+                    },
+                    {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                temperature: 0.3
+                temperature: 0.5,
+                max_tokens: 4096
             })
         });
 
