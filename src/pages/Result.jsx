@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Download, Copy, RotateCcw, ArrowLeft } from 'lucide-react';
+import { Download, Copy, RotateCcw, ArrowLeft, CheckCheck } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import Button from '../components/Button';
 import './Result.css';
 
@@ -9,13 +10,14 @@ import { jsPDF } from 'jspdf';
 export default function Result() {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState('tailored');
+    const [copied, setCopied] = useState(false);
 
-    // Destructure content from location state
-    const { originalText, tailoredText, resumeId } = location.state || {}; // Fallback if direct access
+    const { originalText, tailoredText, resumeId } = location.state || {};
 
     const handleCopy = () => {
         navigator.clipboard.writeText(tailoredText);
-        alert('Copied to clipboard!');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const handleDownload = () => {
@@ -25,46 +27,105 @@ export default function Result() {
         }
 
         try {
-            const doc = new jsPDF();
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-            // Add Title
-            doc.setFontSize(20);
-            doc.text("Tailored Resume", 25, 25);
+            const margin = 20;
+            const pageWidth = 210;
+            const usableWidth = pageWidth - margin * 2;
+            const pageHeight = 297;
+            let y = margin;
 
-            // Add Content
-            doc.setFontSize(12);
+            const lines = tailoredText.split('\n');
 
-            const pageWidth = 160; // 210mm - 25mm margin * 2
-            const lineHeight = 7;
-            const margin = 25;
-            const pageHeight = 297; // A4 height mm
-            let cursorY = 45;
-
-            const splitText = doc.splitTextToSize(tailoredText, pageWidth);
-
-            splitText.forEach(line => {
-                // Check for new page
-                if (cursorY + lineHeight > pageHeight - margin) {
+            const addPageIfNeeded = (height) => {
+                if (y + height > pageHeight - margin) {
                     doc.addPage();
-                    cursorY = margin;
+                    y = margin;
                 }
+            };
 
-                // Simple heuristic for Headers: Short line, follows empty line (or is first), commonly used keys
-                const isHeader = /^(Summary|Experience|Education|Skills|Certifications|Projects)/i.test(line) && line.length < 30;
+            lines.forEach((rawLine) => {
+                const line = rawLine.trim();
 
-                if (isHeader) {
-                    cursorY += 5; // Extra gap before header
-                    doc.setFont(undefined, 'bold');
-                    doc.text(line, margin, cursorY);
-                    doc.setFont(undefined, 'normal');
-                    cursorY += lineHeight + 2; // Extra gap after header
+                // H1 - Name
+                if (line.startsWith('# ')) {
+                    const text = line.replace(/^# /, '');
+                    addPageIfNeeded(12);
+                    doc.setFontSize(20);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(15, 23, 42);
+                    doc.text(text, margin, y);
+                    y += 10;
+                    // Underline separator
+                    doc.setDrawColor(99, 102, 241);
+                    doc.setLineWidth(0.8);
+                    doc.line(margin, y, pageWidth - margin, y);
+                    y += 6;
+
+                // H2 - Section Headers
+                } else if (line.startsWith('## ')) {
+                    const text = line.replace(/^## /, '');
+                    addPageIfNeeded(10);
+                    y += 3;
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(99, 102, 241);
+                    doc.text(text.toUpperCase(), margin, y);
+                    y += 2;
+                    doc.setDrawColor(226, 232, 240);
+                    doc.setLineWidth(0.3);
+                    doc.line(margin, y, pageWidth - margin, y);
+                    y += 6;
+
+                // H3 - Job titles / Project names
+                } else if (line.startsWith('### ')) {
+                    const text = line.replace(/^### /, '');
+                    addPageIfNeeded(8);
+                    doc.setFontSize(10.5);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(15, 23, 42);
+                    doc.text(text, margin, y);
+                    y += 6;
+
+                // H4 - Tech stack / subtitle
+                } else if (line.startsWith('#### ')) {
+                    const text = line.replace(/^#### /, '');
+                    addPageIfNeeded(7);
+                    doc.setFontSize(9.5);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(text, margin, y);
+                    y += 5;
+
+                // Bullet points
+                } else if (line.startsWith('* ') || line.startsWith('- ')) {
+                    const text = line.replace(/^[*-] /, '');
+                    const cleanText = text.replace(/\*\*(.*?)\*\*/g, '$1');
+                    const splitLines = doc.splitTextToSize(`• ${cleanText}`, usableWidth - 4);
+                    addPageIfNeeded(splitLines.length * 5 + 2);
+                    doc.setFontSize(9.5);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(51, 65, 85);
+                    doc.text(splitLines, margin + 3, y);
+                    y += splitLines.length * 5 + 1;
+
+                // Empty line
+                } else if (line === '') {
+                    y += 2;
+
+                // Normal text / contact info
                 } else {
-                    doc.text(line, margin, cursorY);
-                    cursorY += lineHeight;
+                    const cleanText = line.replace(/\*\*(.*?)\*\*/g, '$1');
+                    const splitLines = doc.splitTextToSize(cleanText, usableWidth);
+                    addPageIfNeeded(splitLines.length * 5 + 1);
+                    doc.setFontSize(9.5);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(51, 65, 85);
+                    doc.text(splitLines, margin, y);
+                    y += splitLines.length * 5 + 1;
                 }
             });
 
-            // Save the PDF
             doc.save(`tailored-resume-${resumeId || 'new'}.pdf`);
 
         } catch (error) {
@@ -76,28 +137,32 @@ export default function Result() {
     if (!tailoredText) {
         return (
             <div className="container result-container">
-                <p>No result found. Please create a resume first.</p>
-                <Link to="/create"><Button>Create Resume</Button></Link>
+                <div className="no-result">
+                    <p>No result found. Please create a resume first.</p>
+                    <Link to="/create"><Button>Create Resume</Button></Link>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="container result-container">
+            {/* Header */}
             <div className="result-header">
                 <Link to="/dashboard" className="back-link">
-                    <ArrowLeft size={20} /> Back to Dashboard
+                    <ArrowLeft size={18} /> Back to Dashboard
                 </Link>
                 <div className="result-actions">
                     <Button variant="outline" onClick={() => window.location.href = '/create'}>
-                        <RotateCcw size={16} className="icon-sm" /> Generate Again
+                        <RotateCcw size={15} className="icon-sm" /> Generate Again
                     </Button>
-                    <Button onClick={handleDownload} disabled={!resumeId}>
-                        <Download size={16} className="icon-sm" /> Download PDF
+                    <Button onClick={handleDownload}>
+                        <Download size={15} className="icon-sm" /> Download PDF
                     </Button>
                 </div>
             </div>
 
+            {/* Mobile Tabs */}
             <div className="result-tabs mobile-only">
                 <button
                     className={`tab-btn ${activeTab === 'original' ? 'active' : ''}`}
@@ -113,27 +178,53 @@ export default function Result() {
                 </button>
             </div>
 
+            {/* Grid */}
             <div className="result-grid">
                 {/* Original Resume */}
-                <div className={`resume-preview original ${activeTab === 'original' ? 'active-mobile' : ''}`}>
-                    <div className="preview-header">
-                        <h3>Original Resume</h3>
+                <div className={`resume-panel original-panel ${activeTab === 'original' ? 'active-mobile' : ''}`}>
+                    <div className="panel-header">
+                        <span className="panel-badge original-badge">Original</span>
+                        <h3>Your Resume</h3>
                     </div>
-                    <div className="preview-content">
-                        <pre>{originalText || "Original text unavailable"}</pre>
+                    <div className="panel-content">
+                        <pre className="original-pre">{originalText || "Original text unavailable"}</pre>
                     </div>
                 </div>
 
                 {/* Tailored Resume */}
-                <div className={`resume-preview tailored ${activeTab === 'tailored' ? 'active-mobile' : ''}`}>
-                    <div className="preview-header">
+                <div className={`resume-panel tailored-panel ${activeTab === 'tailored' ? 'active-mobile' : ''}`}>
+                    <div className="panel-header">
+                        <span className="panel-badge tailored-badge">AI Tailored</span>
                         <h3>Tailored Result</h3>
-                        <button className="copy-btn" onClick={handleCopy} title="Copy text">
-                            <Copy size={16} />
+                        <button
+                            className={`copy-btn ${copied ? 'copied' : ''}`}
+                            onClick={handleCopy}
+                            title="Copy to clipboard"
+                        >
+                            {copied ? <><CheckCheck size={15} /> Copied!</> : <><Copy size={15} /> Copy</>}
                         </button>
                     </div>
-                    <div className="preview-content">
-                        <pre>{tailoredText}</pre>
+                    <div className="panel-content resume-doc">
+                        <ReactMarkdown
+                            components={{
+                                h1: ({ children }) => <h1 className="resume-name">{children}</h1>,
+                                h2: ({ children }) => <h2 className="resume-section">{children}</h2>,
+                                h3: ({ children }) => <h3 className="resume-role">{children}</h3>,
+                                h4: ({ children }) => <h4 className="resume-subtitle">{children}</h4>,
+                                p: ({ children }) => <p className="resume-p">{children}</p>,
+                                ul: ({ children }) => <ul className="resume-ul">{children}</ul>,
+                                li: ({ children }) => <li className="resume-li">{children}</li>,
+                                strong: ({ children }) => <strong className="resume-strong">{children}</strong>,
+                                a: ({ href, children }) => (
+                                    <a href={href} target="_blank" rel="noopener noreferrer" className="resume-link">
+                                        {children}
+                                    </a>
+                                ),
+                                hr: () => <hr className="resume-hr" />,
+                            }}
+                        >
+                            {tailoredText}
+                        </ReactMarkdown>
                     </div>
                 </div>
             </div>
