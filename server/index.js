@@ -357,7 +357,7 @@ app.post('/api/groq/generate', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
                 messages: [
                     {
                         role: 'system',
@@ -411,4 +411,5 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`   Gemini API Key: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing'}`);
     console.log(`   Groq API Key  : ${process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes('placeholder') ? 'Configured' : 'Missing/Placeholder'}`);
+    console.log(`   Groq Model    : ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile (default)'}`);
 });
