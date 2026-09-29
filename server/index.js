@@ -316,6 +316,10 @@ async function generateViaGroq(prompt) {
     if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY.includes('placeholder')) {
         throw new Error('Groq API key is not configured.');
     }
+    const chosenModel = (process.env.GROQ_MODEL && !process.env.GROQ_MODEL.includes('llama'))
+        ? process.env.GROQ_MODEL
+        : 'openai/gpt-oss-120b';
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -323,7 +327,7 @@ async function generateViaGroq(prompt) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+            model: chosenModel,
             messages: [
                 {
                     role: 'system',
