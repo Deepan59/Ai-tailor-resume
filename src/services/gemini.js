@@ -1,8 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export const generateResponse = async (prompt) => {
     try {
-        const response = await fetch(`${API_URL}/api/groq/generate`, {
+        const response = await fetch(`${API_URL}/api/gemini/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

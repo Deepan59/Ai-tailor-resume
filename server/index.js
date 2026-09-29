@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import User from './models/user.js';
@@ -54,9 +55,15 @@ const upload = multer({
 });
 
 // Middleware
+app.use((req, res, next) => {
+    res.setHeader('X-Server-Id', process.env.SERVER_ID || os.hostname());
+    next();
+});
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173','https://ai-tailor-resume-5eqs.onrender.com'],
-    credentials: true
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'https://ai-tailor-resume-5eqs.onrender.com'],
+    credentials: true,
+    exposedHeaders: ['X-Server-Id']
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -80,7 +87,12 @@ const authenticateToken = (req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Server is running', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+    res.json({
+        status: 'ok',
+        message: 'Server is running',
+        server_id: process.env.SERVER_ID || os.hostname(),
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
 });
 
 // ================= AUTH ROUTES =================
@@ -299,9 +311,46 @@ app.get('/api/resumes/:id/download', authenticateToken, async (req, res) => {
     }
 });
 
+// Helper for Groq completion
+async function generateViaGroq(prompt) {
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY.includes('placeholder')) {
+        throw new Error('Groq API key is not configured.');
+    }
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert professional resume writer. Your job is to REWRITE and TAILOR resumes to match specific job descriptions. You MUST make meaningful changes: rephrase bullet points using keywords from the job description, reorder skills to prioritize relevant ones, and adjust language to match the role. Always return ONLY the full tailored resume in clean markdown format. Never return the original resume unchanged. Never add commentary or explanation — only the resume markdown.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.5,
+            max_tokens: 4096
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Groq API status ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
+}
+
 // ================= GEMINI ROUTE =================
 
-// Gemini API endpoint
+// Gemini API endpoint (with automatic fallback to Groq)
 app.post('/api/gemini/generate', async (req, res) => {
     try {
         const { prompt } = req.body;
@@ -310,24 +359,30 @@ app.post('/api/gemini/generate', async (req, res) => {
             return res.status(400).json({ error: 'Prompt is required' });
         }
 
-        if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: 'Gemini API key is not configured' });
-        }
-
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            generationConfig: {
-                maxOutputTokens: 8192,
+        try {
+            if (!process.env.GEMINI_API_KEY) {
+                throw new Error('Gemini API key is not configured');
             }
-        });
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+            const model = genAI.getGenerativeModel({
+                model: 'gemini-3.8-flash',
+                generationConfig: {
+                    maxOutputTokens: 8192,
+                }
+            });
 
-        res.json({ text });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+
+            return res.json({ text });
+        } catch (geminiError) {
+            console.warn('Gemini generation failed, trying Groq fallback:', geminiError.message);
+            const fallbackText = await generateViaGroq(prompt);
+            return res.json({ text: fallbackText });
+        }
     } catch (error) {
-        console.error('Gemini API Error:', error);
+        console.error('AI API Error:', error);
         res.status(500).json({
             error: 'Failed to generate content',
             message: error.message
@@ -346,41 +401,7 @@ app.post('/api/groq/generate', async (req, res) => {
             return res.status(400).json({ error: 'Prompt is required' });
         }
 
-        if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY.includes('placeholder')) {
-            return res.status(500).json({ error: 'Groq API key is not configured. Please add it to your server .env file.' });
-        }
-
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are an expert professional resume writer. Your job is to REWRITE and TAILOR resumes to match specific job descriptions. You MUST make meaningful changes: rephrase bullet points using keywords from the job description, reorder skills to prioritize relevant ones, and adjust language to match the role. Always return ONLY the full tailored resume in clean markdown format. Never return the original resume unchanged. Never add commentary or explanation — only the resume markdown.'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.5,
-                max_tokens: 4096
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Groq API returned status ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content || '';
-
+        const text = await generateViaGroq(prompt);
         res.json({ text });
     } catch (error) {
         console.error('Groq API Error:', error);

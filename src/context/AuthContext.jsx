@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 const AuthContext = createContext(null);
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
