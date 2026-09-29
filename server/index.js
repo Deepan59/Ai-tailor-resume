@@ -365,7 +365,7 @@ app.post('/api/gemini/generate', async (req, res) => {
             }
 
             const model = genAI.getGenerativeModel({
-                model: 'gemini-3.8-flash',
+                model: 'gemini-3.7-flash',
                 generationConfig: {
                     maxOutputTokens: 8192,
                 }
